@@ -1,7 +1,5 @@
-// import { resolve } from 'node:path';
 import { config } from 'dotenv';
 
-// config({ path: resolve('./config/.env.development') });
 config({});
 
 import type { Express, Request, Response, NextFunction } from 'express';
