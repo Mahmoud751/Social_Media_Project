@@ -1,7 +1,8 @@
-import { resolve } from 'node:path';
+// import { resolve } from 'node:path';
 import { config } from 'dotenv';
 
-config({ path: resolve('./config/.env.development') });
+// config({ path: resolve('./config/.env.development') });
+config({});
 
 import type { Express, Request, Response, NextFunction } from 'express';
 import type { RateLimitRequestHandler, Options } from 'express-rate-limit';
