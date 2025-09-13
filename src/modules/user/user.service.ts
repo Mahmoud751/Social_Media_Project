@@ -13,7 +13,7 @@ import { IOTP, OTPDocLean, Provider, UpdateResultType, UserDoc, UserDocLean } fr
 import { checkOTPStatus, generateOTPCode, generateOTPObject, validateOTP, ValidateOTPType } from "../../utils/security/otp.security";
 import { emailEvent } from "../../utils/event/email.event";
 import { compareHash, generateHash } from "../../utils/security/hash.security";
-import { uploadFile } from "../../utils/multer/AWS/s3.service";
+import { uploadFile, uploadFiles } from "../../utils/multer/AWS/s3.service";
 
 export class UserService {
     private userModel: UserRepository;
@@ -261,6 +261,19 @@ export class UserService {
             path: `users/${decoded._id}`
         });
         return res.json({ message: "Photo Uploaded Successfully!", key });
+    };
+
+    profileCoverImages = async (req: IAuthRequest, res: Response): Promise<Response> => {
+        const { decoded }: IDecoded = req;
+        const files = req.files;
+        if (!files || !files.length || !decoded) {
+            throw new BadRequestException("Invalid Provided Data!");
+        }
+        const keys: string[] = await uploadFiles({
+            path: `users/${decoded._id}/cover`,
+            files: files as Express.Multer.File[]
+        });
+        return res.json({ message: "Photos Uploaded Successfully!", keys });
     };
 
     logout = async (req: IAuthRequest, res: Response): Promise<Response> => {

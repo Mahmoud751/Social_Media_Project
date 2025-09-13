@@ -13,6 +13,7 @@
   "description": "",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.887.0",
+    "@aws-sdk/lib-storage": "^3.888.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "crypto-js": "^4.2.0",

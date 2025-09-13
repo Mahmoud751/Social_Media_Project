@@ -27,6 +27,8 @@ router.patch('/reset-password', validation(validators.resetPassword), userServic
 
 router.patch('/upload-user-photo', authMiddleware.authentication(), cloudFileUpload({ validation: fileValidation.image }).single("image"), userService.profileImage);
 
+router.patch('/upload-user-cover', authMiddleware.authentication(), cloudFileUpload({ validation: fileValidation.image }).array("images", 3), userService.profileCoverImages);
+
 router.post('/logout', validation(validators.logout), authMiddleware.authentication(), userService.logout); // Done
 
 export default router;
