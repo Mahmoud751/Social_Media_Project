@@ -1,6 +1,7 @@
 import type { JwtPayload } from "jsonwebtoken"
-import type { Gender, UserDoc, UserDocLean } from "../../DB/models/User.model"
+import type { Gender } from "../../DB/models/User.model"
 import type { IEmailConfirmation } from "../auth/auth.dto"
+import type { IDType, UserDoc, UserDocLean } from "../../utils/types/mongoose.types"
 
 export interface IDecoded {
     decoded?: JwtPayload
@@ -24,11 +25,20 @@ export interface IResetPassword extends IEmailConfirmation {
 };
 
 export interface IUpdate {
-    username?: string | undefined,
-    firstName?: string,
-    lastName?: string,
-    age?: number,
-    phone?: string,
-    address?:string,
-    gender?: Gender
+    username?: string | undefined;
+    firstName?: string;
+    lastName?: string;
+    age?: number;
+    phone?: string;
+    address?:string;
+    gender?: Gender;
+};
+
+export interface IProfileImage {
+    originalname: string
+    ContentType: string;
+};
+
+export interface IUserId {
+    userId?: IDType;
 };

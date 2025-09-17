@@ -1,18 +1,23 @@
+import { resolve } from 'path';
 import { config } from 'dotenv';
 
-config({});
+config({ path: resolve('./config/.env.development') });
 
 import type { Express, Request, Response, NextFunction } from 'express';
 import type { RateLimitRequestHandler, Options } from 'express-rate-limit';
 import type { CorsOptions } from 'cors';
-import { globalErrorHandling } from './utils/response/error.response';
+import { BadRequestException, globalErrorHandling } from './utils/response/error.response';
 import { rateLimit } from 'express-rate-limit';
+import { getFile } from './utils/multer/AWS/s3.service';
+import { pipeline } from 'stream/promises';
 import authController from './modules/auth/auth.controller';
 import userController from './modules/user/user.controller';
+import postController from './modules/post/post.controller';
+import commentController from './modules/comment/comment.controller';
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
-import connectDB from './DB/connection/db.connection';
+import connectDB from './DB/connect.db';
 
 const bootsrap = async (): Promise<void> => {
     const app: Express = express();
@@ -41,19 +46,89 @@ const bootsrap = async (): Promise<void> => {
         standardHeaders: "draft-8"
     });
 
-    // Convert Buffer Data | Accessing | Response Protection | Rate Limiting
+    // Convert Buffer Data | Access-Origins | Response Protection | Rate Limiting
     app.use(express.json(), cors(corsOptions), helmet(), limiter);
 
+    // Connecting To Database
     await connectDB();
 
     // Home Route
-    app.get('/', (req: Request, res: Response) => res.json({ message: "Home Page 🏠🏠"}));
+    app.get('/', (req: Request, res: Response) => res.json({ message: "Home Page 🏠🏠" }));
 
     // Authentication
     app.use('/auth', authController);
 
     // User
     app.use('/user', userController);
+
+    // Post
+    app.use('/post', postController);
+
+    // Comment
+    app.use('/comment', commentController);
+
+    // // Uploads
+    // app.get('/upload/pre-signed/*path', async (req: Request, res: Response): Promise<Response> => {
+    //     const { path }: { path?: string[] } = req.params;
+    //     console.log('x');
+    //     const { downloadName, download }: { downloadName?: string, download?: string } = req.query;
+    //     if (!path) {
+    //         throw new BadRequestException("Invalid Path!");
+    //     }
+    //     const Key: string = path.join("/");
+    //     const url: string = await createGetPresignedLink({
+    //         Key,
+    //         expiresIn: 60,
+    //         downloadName: downloadName as string,
+    //         download: download as string
+    //     });
+    //     return res.json({ message: "Done", url });
+    // });
+
+    // app.get('/upload/delete-file/*path', async (req: Request, res: Response): Promise<Response> => {
+    //     const { path }: { path?: string[] } = req.params;
+    //     if (!path) {
+    //         throw new BadRequestException("Invalid Path");
+    //     }
+    //     const Key: string = path.join("/");
+    //     const result = await deleteFile(Key);
+    //     return res.json({ result });
+    // });
+
+    // app.get('/upload/get-directory/*path', async (req: Request, res: Response): Promise<Response> => {
+    //     const { path }: { path?: string[] } = req.params;
+    //     if (!path) {
+    //         throw new BadRequestException("Invalid Path!");
+    //     }
+    //     const result: DeleteObjectCommandOutput = await getDirectoryFiles(path.join("/"));
+    //     console.log(result);
+    //     return res.json({ result });
+    // });
+
+    // app.get('/upload/delete-directory/*path', async (req: Request, res: Response): Promise<Response> => {
+    //     const { path }: { path?: string[] } = req.params;
+    //     if (!path) {
+    //         throw new BadRequestException("Invalid Path!");
+    //     }
+    //     const result: DeleteObjectCommandOutput = await deleteDirectoryByPrefix(path.join("/"));
+    //     console.log(result);
+    //     return res.json({ result });
+    // });
+
+    app.get('/upload/*path', async (req: Request, res: Response): Promise<void> => {
+        const { path }: { path?: string[] } = req.params;
+        const { download, downloadName }: { download?: string, downloadName?: string } = req.query;
+        if (!path) {
+            throw new BadRequestException("Invalid Path");
+        }
+        const Key: string = path.join("/");
+        const { Body, ContentType } = await getFile(Key);
+        res.setHeader("Content-Type", `${ContentType || "application/octet-stream"}`);
+        if (download === 'true') {
+            res.setHeader("Content-Disposition", `attachments; filename="${downloadName || Key[-1]}"`)
+        }
+        return await pipeline(Body as NodeJS.ReadableStream, res);
+    });
 
     // Invalid Route
     app.use('{/*dummy}', (req: Request, res: Response) => res.json({ message: "Page Not Found❌❌" }));

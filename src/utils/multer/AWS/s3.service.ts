@@ -1,18 +1,52 @@
-import { ObjectCannedACL, PutObjectCommand } from "@aws-sdk/client-s3";
+import {
+    _Object,
+    DeleteObjectCommand,
+    DeleteObjectCommandOutput,
+    DeleteObjectsCommand,
+    DeleteObjectsCommandOutput,
+    GetObjectCommand,
+    GetObjectCommandOutput,
+    ListObjectsV2Command,
+    ListObjectsV2CommandOutput,
+    ObjectCannedACL,
+    PutObjectCommand
+} from "@aws-sdk/client-s3";
 import { StorageEnum } from "../local/local.multer";
 import { createReadStream } from "fs";
 import { ApplicationException, BadRequestException } from "../../response/error.response";
 import { Upload } from "@aws-sdk/lib-storage";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import s3Config from "./s3.config";
 
 export interface FileOptionsType {
-    storageType?: StorageEnum,
-    Bucket?: string,
-    ACL?: ObjectCannedACL,
-    path?: string,
-    file?: Express.Multer.File,
-    files?: Express.Multer.File[],
+    storageType?: StorageEnum;
+    Bucket?: string;
+    ACL?: ObjectCannedACL;
+    path?: string;
+    file?: Express.Multer.File;
+    files?: Express.Multer.File[];
     isLarge?: boolean
+};
+
+export interface PresignedUploadType {
+    Bucket?: string;
+    path?: string;
+    originalname: string;
+    ContentType: string;
+    expiresIn?: number
+};
+
+export interface PresignedGetType {
+    Bucket?: string;
+    downloadName?: string;
+    download?: string;
+    Key: string;
+    expiresIn?: number;
+};
+
+export interface UploadPresignedPayloadType {
+    url: string,
+    key: string
 };
 
 export const uploadFile = async ({
@@ -98,4 +132,100 @@ export const uploadFiles = async ({
     } catch (error) {
         throw new BadRequestException("Failed To Upload Files!");
     }
+};
+
+export const getFile = async (
+    Key: string,
+    Bucket: string = process.env.AWS_BUCKET_NAME as string
+): Promise<GetObjectCommandOutput> => {
+    const command = new GetObjectCommand({ Bucket, Key });
+    return await s3Config().send(command);
+};
+
+export const getDirectoryFiles = async (
+    path: string,
+    Bucket: string = process.env.AWS_BUCKET_NAME as string
+): Promise<ListObjectsV2CommandOutput> => {
+    const command = new ListObjectsV2Command({
+        Bucket,
+        Prefix: `${process.env.APP_NAME}/${path}`
+    });
+    return (await s3Config().send(command));
+};
+
+export const deleteFile = async (
+    Key: string,
+    Bucket: string = process.env.AWS_BUCKET_NAME as string
+): Promise<DeleteObjectCommandOutput> => {
+    const command = new DeleteObjectCommand({ Bucket, Key });
+    return await s3Config().send(command);
+};
+
+export const deleteFiles = async (
+    urls: string[],
+    Bucket: string = process.env.AWS_BUCKET_NAME as string
+): Promise<DeleteObjectsCommandOutput> => {
+    const Objects = urls.map((url: string) => ({ Key: url }));
+    const command = new DeleteObjectsCommand({
+        Bucket,
+        Delete: { Objects, Quiet: true }
+    });
+    return await s3Config().send(command);
+};
+
+export const deleteDirectoryByPrefix = async (
+    path: string,
+    Bucket: string = process.env.AWS_BUCKET_NAME as string
+): Promise<DeleteObjectCommandOutput> => {
+    const files: ListObjectsV2CommandOutput = await getDirectoryFiles(path, Bucket);
+    console.log(files);
+    if (!files || !files.KeyCount) {
+        throw new BadRequestException("No Files Exist!");
+    }
+    const urls: string[] = (files.Contents as _Object[]).map((content: _Object) => content.Key as string);
+    return await deleteFiles(urls, Bucket);
+};
+
+export const createUploadPresignedLink = async ({
+    Bucket = process.env.AWS_BUCKET_NAME as string,
+    path = "general",
+    expiresIn = 300,
+    originalname,
+    ContentType,
+}: PresignedUploadType): Promise<UploadPresignedPayloadType> => {
+    const command = new PutObjectCommand({
+        Bucket,
+        Key: `${process.env.APP_NAME}/${path}/${Math.floor(Math.random() * 10e8)}_${Date.now()}_${originalname}`,
+        ContentType,
+    });
+    const url: string = await getSignedUrl(s3Config(), command, { expiresIn });
+    const key = command.input.Key as string;
+    if (!key) {
+        throw new BadRequestException("Invaild Presigned URL Or Key Path!");
+    }
+    return { url, key };
+};
+
+export const createGetPresignedLink = async ({
+    Key,
+    expiresIn = 300,
+    Bucket = process.env.AWS_BUCKET_NAME as string,
+    downloadName = "dummy",
+    download = "false"
+}: PresignedGetType): Promise<string> => {
+    // Enable Downloading
+    const ResponseContentDisposition: string | undefined = 
+        download === 'true' ? `attachments; filename="${downloadName || Key[-1]}"` : undefined
+
+    // Retrieve File
+    const command = new GetObjectCommand({
+        Bucket, Key, ResponseContentDisposition
+    });
+
+    // Generate Presigned URL
+    const url: string = await getSignedUrl(s3Config(), command, { expiresIn });
+    if (!url) {
+        throw new BadRequestException("Failed To Get The File!");
+    }
+    return url;
 };

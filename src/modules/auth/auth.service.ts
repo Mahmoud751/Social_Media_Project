@@ -1,16 +1,41 @@
-import type { IDToken, IEmail, IEmailConfirmation, ILogin, ISignup, ISignupEmail } from "./auth.dto";
-import type { Types } from "mongoose";
-import { type UserDocLean, type UserDoc, type OTPDocLean, Provider } from "../../DB/models/User.model";
-import type { Request, Response } from "express";
-import { type LoginTicket, type TokenPayload, OAuth2Client } from "google-auth-library";
-import { type TokenCredentialType, createLoginCredentials } from "../../utils/security/token.security";
-import { BadRequestException, ConflictException, NotFoundException, UnauthorizedException } from "../../utils/response/error.response";
-import { UserRepository } from "../../DB/repository/User.repository";
+import type {
+    IDToken,
+    IEmail,
+    IEmailConfirmation,
+    ILogin,
+    ISignup,
+    ISignupEmail
+} from "./auth.dto";
+import {
+    BadRequestException,
+    ConflictException,
+    NotFoundException,
+    UnauthorizedException
+} from "../../utils/response/error.response";
+import {
+    generateOTPCode,
+    generateOTPObject,
+    ValidateOTPType
+} from "../../utils/security/otp.security";
+import {
+    type LoginTicket,
+    type TokenPayload,
+    OAuth2Client
+} from "google-auth-library";
+import {
+    type TokenCredentialType,
+    createLoginCredentials
+} from "../../utils/security/token.security";
 import { compareHash, generateHash } from "../../utils/security/hash.security";
-import { generateOTPCode, generateOTPObject, ValidateOTPType } from "../../utils/security/otp.security";
-import { generateEncryption } from "../../utils/security/crypto.security";
-import { emailEvent } from "../../utils/event/email.event";
+import type { Types } from "mongoose";
+import type { Request, Response } from "express";
+import type { OTPDocLean, UserDoc, UserDocLean } from "../../utils/types/mongoose.types";
+import type { UserRepository } from "../../DB/repository/User.repository";
+import type { ILoginResponse, ISignupResponse } from "./auth.entities";
+import { Provider } from "../../DB/models/User.model";
 import { checkOTPStatus, validateOTP } from "../../utils/security/otp.security";
+import { successResponse } from "../../utils/response/sucess.response";
+import emailEvent from "../../utils/event/email.event";
 
 export class AuthenticationService {
     private userModel: UserRepository;
@@ -19,6 +44,11 @@ export class AuthenticationService {
         this.userModel = userModel;
     };
 
+    /**
+     * verifyGoogleAccount
+     * @param idToken - string
+     * @returns Promise<TokenPayload>
+     */
     private verifyGoogleAccount = async (idToken: string): Promise<TokenPayload> => {
         const ticket: LoginTicket = await new OAuth2Client().verifyIdToken({
             idToken,
@@ -27,6 +57,12 @@ export class AuthenticationService {
         return ticket.getPayload() as TokenPayload;
     };
 
+    /**
+     * signupWithGmail
+     * @param req - Express.Request
+     * @param res - Express.Response
+     * @returns Promise<Respone>
+     */
     signupWithGmail = async (req: Request, res: Response): Promise<Response> => {
         const { idToken }: IDToken = req.body;
         if (!idToken || typeof idToken !== 'string') {
@@ -52,16 +88,24 @@ export class AuthenticationService {
             confirmEmail: new Date(),
             provider: Provider.google
         });
-        return res.status(201).json({ message: "User Signed Up Successfully!", user: newUser });
+        return successResponse<ISignupResponse>(res, {
+            message: "User Signed Up Successfully!",
+            statusCode: 201,
+            data: { user: newUser }
+        });
     };
 
+    /**
+     * loginWithGmail
+     * @param req - Express.Request
+     * @param res - Express.Response
+     * @returns Promise<Respone>
+     */
     loginWithGmail = async (req: Request, res: Response): Promise<Response> => {
         const { idToken }: IDToken = req.body;
-
         if (!idToken || typeof idToken !== 'string') {
             throw new BadRequestException("Invalid Id Token!");
         }
-
         // If Account Not Confirmed
         const payload: TokenPayload = await this.verifyGoogleAccount(idToken);
         if (!payload || !payload.email_verified) {
@@ -75,11 +119,21 @@ export class AuthenticationService {
         if (!user) {
             throw new NotFoundException("User Does Not Exist!");
         }
-
-        const credentails: TokenCredentialType = await createLoginCredentials({ _id: user._id as Types.ObjectId });
-        return res.json({ message: "User Logged In Successfully!", credentails });
+        const credentials: TokenCredentialType = await createLoginCredentials({ _id: user._id as Types.ObjectId });
+        return successResponse<ILoginResponse>(res, {
+            message: "User Logged In Successfully!",
+            data: {
+                credentials
+            }
+        });
     };
 
+    /**
+     * signWithGmail
+     * @param req - Express.Request
+     * @param res - Express.Response
+     * @returns Promise<Respone>
+     */
     signWithGmail = async (req: Request, res: Response): Promise<Response> => {
         const { idToken }: IDToken = req.body;
         if (!idToken || typeof idToken !== 'string') {
@@ -98,8 +152,13 @@ export class AuthenticationService {
 
         // If User Already Exists => Login
         if (user) {
-            const credentails: TokenCredentialType = await createLoginCredentials({ _id: user._id as Types.ObjectId });
-            return res.status(200).json({ message: "User Logged In Successfully!", credentails });
+            const credentials: TokenCredentialType = await createLoginCredentials({ _id: user._id as Types.ObjectId });
+            return successResponse<ILoginResponse>(res, {
+                message: "User Logged In Successfully!",
+                data: {
+                    credentials
+                }
+            });
         }
 
         // If Not => Signup
@@ -112,7 +171,11 @@ export class AuthenticationService {
             confirmEmail: new Date(),
             provider: Provider.google
         });
-        return res.status(201).json({ message: "User Signed Up Successfully!", user: newUser });
+        return successResponse<ISignupResponse>(res, {
+            message: "User Signed Up Successfully!",
+            statusCode: 201,
+            data: { user: newUser }
+        });
     };
 
     /**
@@ -131,16 +194,20 @@ export class AuthenticationService {
         const otp: string = generateOTPCode();
         const user: UserDoc = await this.userModel.createUser({
             ...data,
-            phone: await generateEncryption(data.phone),
-            password: await generateHash(data.password),
+            phone: data.phone,
+            password: data.password,
             confirmOtp: await generateOTPObject(otp)
         });
         // Send Email To Confirm The Account
         if (!user) {
             throw new BadRequestException("Failed To Signup This User!");
         }
-        emailEvent.emit("ConfirmEmail", { otp, to: data.email });
-        return res.json({ message: "User Signed Up Successfully!", user });
+        emailEvent.emit("send-confirmation-email", { otp, to: data.email });
+        return successResponse<ISignupResponse>(res, {
+            message: "User Signed Up Successfully!",
+            statusCode: 201,
+            data: { user }
+        });
     };
 
     /**
@@ -161,17 +228,25 @@ export class AuthenticationService {
         if (!user.confirmEmail) {
             throw new UnauthorizedException("Email Not Confirmed!");
         }
+        if (user.freezedAt) {
+            throw new UnauthorizedException("Account Is Deleted!");
+        }
         if (!await compareHash(password, user.password)) {
             throw new UnauthorizedException("Invalid Email Or Password!");
         }
-        const credentails: TokenCredentialType = await createLoginCredentials({ _id: user._id as Types.ObjectId }, user.role);
-        return res.json({ message: "User Logged In Successfully!", credentails });
+        const credentials: TokenCredentialType = await createLoginCredentials({ _id: user._id as Types.ObjectId }, user.role);
+
+        return successResponse<ILoginResponse>(res, {
+            message: "User Logged In Successfully!",
+            data: { credentials }
+        });
     };
 
     /**
-     * verifyAccount
-     * @param data - IEmailConfirmation
-     * @returns Promise<boolean>
+     * confirmEmail
+     * @param req - Express.Request
+     * @param res - Express.Response
+     * @returns Promise<Respone>
      */
     confirmEmail = async (req: Request, res: Response): Promise<Response> => {
         const { email, otp }: IEmailConfirmation = req.body;
@@ -213,9 +288,15 @@ export class AuthenticationService {
                 unset: { confirmOtp: true }
             }
         });
-        return res.json({ message: "Email Confirmed Successfully!" });
+        return successResponse(res, { message: "Email Confirmed Successfully!" });
     };
 
+    /**
+     * resendConfirmEmail
+     * @param req - Express.Request
+     * @param res - Express.Response
+     * @returns Promise<Respone>
+     */
     resendConfirmEmail = async (req: Request, res: Response): Promise<Response> => {
         const { email }: IEmail = req.body;
         const user: UserDoc | UserDocLean | null = await this.userModel.findUser({
@@ -239,7 +320,7 @@ export class AuthenticationService {
 
         // Send Mail With OTP to Verify The Account
         const otpCode: string = generateOTPCode();
-        emailEvent.emit("ConfirmEmail", { otp: otpCode, to: user.email });
+        emailEvent.emit("send-confirmation-email", { otp: otpCode, to: user.email });
         await this.userModel.updateUser({
             filter: { email },
             updates: {
@@ -253,6 +334,6 @@ export class AuthenticationService {
                 },
             }
         });
-        return res.json({ message: `OTP Code's Been Sent Successfully to ${email}` })
+        return successResponse(res, { message: `OTP Code's Been Sent Successfully to ${email}` });
     };
 };

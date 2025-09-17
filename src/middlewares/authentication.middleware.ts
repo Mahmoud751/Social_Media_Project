@@ -1,23 +1,12 @@
-import type { NextFunction, Request, Response, RequestHandler } from "express";
+import type { NextFunction, Response } from "express";
 import type { UserRepository } from "../DB/repository/User.repository";
-import { type DecodedTokenType, decodedToken, TokenEnum } from "../utils/security/token.security";
+import type { AuthRequestHandler, IAuthRequest } from "../utils/types/Express.types";
+import type { TokenDoc, TokenDocLean } from "../DB/models/Token.model";
 import { type UserDoc, type UserDocLean, Role } from "../DB/models/User.model";
+import { type DecodedTokenType, decodedToken, TokenEnum } from "../utils/security/token.security";
 import { BadRequestException, ForbiddenException, NotFoundException, UnauthorizedException } from "../utils/response/error.response";
 import { TokenRepository } from "../DB/repository/Token.repository";
-import type { TokenDoc, TokenDocLean } from "../DB/models/Token.model";
 import { tokenRepo } from "../shared/repos.shared";
-import { JwtPayload } from "jsonwebtoken";
-
-export interface IAuthRequest extends Request {
-    user?: UserDoc | UserDocLean,
-    decoded?: JwtPayload
-};
-
-export type AuthRequestHandler = (
-    req: IAuthRequest,
-    res: Response,
-    next: NextFunction
-) => Promise<void>;
 
 export class AuthMiddleware {
     private userModel: UserRepository;
@@ -62,17 +51,17 @@ export class AuthMiddleware {
         };
     };
 
-    authorization = (access_roles: Role[] = [Role.user]): RequestHandler => {
-        return async (req: Request, response: Response, next: NextFunction): Promise<void> => {
-            if (!access_roles.includes(Role.user)) {
+    authorization = (access_roles: Role[] = [Role.user]): AuthRequestHandler => {
+        return async (req: IAuthRequest, response: Response, next: NextFunction): Promise<void> => {
+            if (!access_roles.includes(req.user?.role as Role)) {
                 throw new ForbiddenException("Un-Authorized Access!");
             }
             next();
         };
     };
 
-    auth = (tokenType: TokenEnum = TokenEnum.access, access_roles: Role[] = [Role.user]) => {
-        return async (req: Request, res: Response, next: NextFunction) => {
+    auth = (tokenType: TokenEnum = TokenEnum.access, access_roles: Role[] = [Role.user]): AuthRequestHandler => {
+        return async (req: IAuthRequest, res: Response, next: NextFunction) => {
             const decoded: DecodedTokenType = await decodedToken(req.headers.authorization as string);
             const user: UserDoc | UserDocLean | null = await this.userModel.findUser({
                 filter: { _id: decoded._id },
@@ -81,9 +70,11 @@ export class AuthMiddleware {
             if (!user) {
                 throw new NotFoundException("User Does Not Exists!");
             }
-            if (!access_roles.includes(Role.user)) {
+            if (!access_roles.includes(user.role)) {
                 throw new ForbiddenException("Un-Authorized Access!");
             }
+            req.decoded = decoded;
+            req.user = user;
             next();
         };
     };

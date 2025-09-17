@@ -22,12 +22,12 @@ export const generalFields = {
 		new RegExp(/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.[a-zA-Z]).{8,16}$/),
 		"Invalid Password Format!"
 	),
-	id: z.refine((data) => {
-        return isValidObjectId(data);
-    }, {
-        error: "Invalid userId",
-        path: ["userId"]
-    }),
+	id: z.string().refine((data) => {
+		return isValidObjectId(data);
+	}, {
+		error: "Invalid ID Format!",
+		path: ["custom"]
+	}),
 	email: z.email("Invalid Email Format!"),
 	phone: z.string().regex(
 		new RegExp(/^(002|\+2)?01[0125][0-9]{8}$/),

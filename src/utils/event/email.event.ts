@@ -1,36 +1,34 @@
-import { EventEmitter } from "node:stream";
+import type { IEmailOptions } from "../types/Event.types";
 import { sendEmail } from "../security/email/send.email";
 import { verifyEmailTemplate } from "../security/email/templates/verifyEmail.template";
-import type { Options as MailOptions } from "nodemailer/lib/mailer";
+import { AppEmitter } from "../../shared/events.shared";
 
-export const emailEvent = new EventEmitter();
+const emailEvent = new AppEmitter();
 
-export interface IEmailOTP extends MailOptions {
-    otp: number
-};
-
-emailEvent.on("ConfirmEmail", async (data: IEmailOTP): Promise<void> => {
+emailEvent.on("send-confirmation-email", async (data: IEmailOptions): Promise<void> => {
     try {
         const subject: string = data.subject || 'Email Confirmation';
         await sendEmail({
             ...data,
             subject,
-            html: verifyEmailTemplate(data.otp, subject)
+            html: verifyEmailTemplate(data.otp as string, subject)
         });
     } catch (error: unknown) {
         console.log("Failed To Send The Email!", error);
     }
 });
 
-emailEvent.on("ResetPassword", async (data: IEmailOTP): Promise<void> => {
+emailEvent.on("reset-password-email", async (data: IEmailOptions): Promise<void> => {
     try {
         const subject: string = data.subject || 'Reset Password';
         await sendEmail({
             ...data,
             subject,
-            html: verifyEmailTemplate(data.otp, subject)
+            html: verifyEmailTemplate(data.otp as string, subject)
         });
     } catch (error) {
         console.log("Failed To Send The Email!", error);
     }
 });
+
+export default emailEvent;

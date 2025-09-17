@@ -1,5 +1,6 @@
 import type {
     CreateOptions,
+    DeleteResult,
     Model,
     UpdateQuery,
     UpdateResult,
@@ -14,6 +15,8 @@ import type {
     UserOptionsType,
     UserSelectionType,
     UserUpdateOptionsType,
+    UserDeletionOptionsType,
+    IDType,
 } from "../models/User.model";
 
 import { DatabaseRepository } from "./db.repository";
@@ -38,14 +41,14 @@ export class UserRepository extends DatabaseRepository<IUser> {
         select,
         options
     }: {
-        filter: Partial<IUser> & { _id?: string },
-        select?: UserSelectionType,
+        filter: Partial<IUser> & { _id?: IDType },
+        select?: UserSelectionType | null | undefined,
         options?: UserOptionsType
     }): Promise<UserDoc | UserDocLean | null> => {
         if (!Object.keys(filter).length) {
             throw new ApplicationException("Filter Is Required!");
         }
-        return await this.findOne({ filter, select, options })
+        return (await this.findOne({ filter, select, options }));
     };
 
     updateUser = async ({
@@ -62,8 +65,34 @@ export class UserRepository extends DatabaseRepository<IUser> {
         }
         const data: UpdateQuery<IUser> = {
             ...(updates.set && { $set: updates.set }),
-            ...(updates.unset && { $unset: updates.unset }),
+            ...(updates.unset && { $unset: updates.unset })
         };
         return await this.updateOne({ filter, updates: data, options });
+    };
+
+    deleteUser = async ({
+        filter,
+        options,
+    }: {
+        filter: UserFilterType,
+        options?: UserDeletionOptionsType
+    }): Promise<DeleteResult> => {
+        return await this.deleteOne({ filter, options });
+    };
+
+    findUserAndUpdate = async({
+        filter,
+        updates,
+        options
+    }: {
+        filter: UserFilterType,
+        updates: UserUpdateType,
+        options?: UserUpdateOptionsType
+    }): Promise<UserDoc | UserDocLean | null> => {
+        const data: UpdateQuery<IUser> = {
+            ...(updates.set && { $set: updates.set }),
+            ...(updates.unset && { $unset: updates.unset })
+        };
+        return await this.findOneAndUpdate({ filter, updates: data, options });
     };
 };

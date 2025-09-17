@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { generalFields } from "../../middlewares/validation.middleware";
 import type { IUpdatePassword } from "./user.dto";
+import { isValidObjectId } from "mongoose";
 
 export const sendForgetPassword = {
     body: z.strictObject({
@@ -31,6 +32,14 @@ export const updateBasicInfo = {
     })
 };
 
+export const profileImage = {
+    
+};
+
+export const ProfileCoverImages = {
+
+};
+
 export const logout = {
     body: z.strictObject({
         flag: generalFields.flag
@@ -48,3 +57,23 @@ export const updatePassword = {
         path: ["oldPassword"]
     })
 };
+
+export const freezeAccount = {
+    params: z.object({
+        userId: generalFields.id.optional()
+    }).refine((data) => {
+        return data.userId ? isValidObjectId(data.userId) : true;
+    }, {
+        error: "Invalid userId Format!",
+        path: ["userId"]
+    })
+};
+
+
+export const restoreAccount = {
+    params: z.strictObject({
+        userId: generalFields.id
+    })
+};
+
+export const deleteAccount = restoreAccount;

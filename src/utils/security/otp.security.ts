@@ -1,6 +1,6 @@
 import { generateHash } from "./hash.security";
 import { IOTP, OTPDoc, OTPDocLean } from "../../DB/models/User.model";
-import { ApplicationException, BadRequestException } from "../response/error.response";
+import { BadRequestException } from "../response/error.response";
 import { compareHash } from "./hash.security";
 
 export interface ValidateOTPType {

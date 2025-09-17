@@ -1,4 +1,4 @@
-export const verifyEmailTemplate = (otp: number, subject: string = "Email Confirmation") => {
+export const verifyEmailTemplate = (otp: string, subject: string = "Email Confirmation") => {
     return `<!DOCTYPE html>
             <html>
                 <head>

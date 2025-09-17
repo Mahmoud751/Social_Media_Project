@@ -8,18 +8,43 @@ const router: Router = Router();
 
 const authService = new AuthenticationService(userRepo);
 
-router.post('/signup', validation(validators.signup), authService.signup); // Done
+router.post(
+    '/signup',
+    validation(validators.signup),
+    authService.signup
+);
 
-router.post('/login', validation(validators.login), authService.login); // Done
+router.post(
+    '/login',
+    validation(validators.login),
+    authService.login
+);
 
-router.post('/signup-with-gmail', authService.signupWithGmail);
+router.post(
+    '/signup-with-gmail',
+    authService.signupWithGmail
+);
 
-router.post('/login-with-gmail', authService.loginWithGmail);
+router.post(
+    '/login-with-gmail',
+    authService.loginWithGmail
+);
 
-router.post('/sign-with-gmail', authService.signWithGmail);
+router.post(
+    '/sign-with-gmail',
+    authService.signWithGmail
+);
 
-router.patch('/confirm-email', validation(validators.confirmEmail), authService.confirmEmail); // Done
+router.patch(
+    '/confirm-email',
+    validation(validators.confirmEmail),
+    authService.confirmEmail
+);
 
-router.post('/resend-confirm-email', validation(validators.resendConfirmEmail), authService.resendConfirmEmail); // Done
+router.post(
+    '/resend-confirm-email',
+    validation(validators.resendConfirmEmail),
+    authService.resendConfirmEmail
+);
 
 export default router;
