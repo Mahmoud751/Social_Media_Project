@@ -15,7 +15,7 @@ import type {
     UpdateResult,
     UpdateWithAggregationPipeline,
 } from "mongoose";
-import { IDType } from "../models/User.model";
+import { IDType } from "../../utils/types/mongoose.types";
 
 export type LeanDoc<TDocument> = Require_id<FlattenMaps<BufferToBinary<TDocument>>>;
 export type Doc<TDocument> = HydratedDocument<TDocument>;
@@ -43,7 +43,7 @@ export abstract class DatabaseRepository<TDocument> {
         //     doc.lean(options.lean);
         // }
         // return await doc.exec();
-        return (await this.model.findOne(filter, select, options).lean());
+        return (await this.model.findOne(filter, select, options));
     };
 
     findById = async ({
@@ -96,7 +96,7 @@ export abstract class DatabaseRepository<TDocument> {
         updates: UpdateQuery<TDocument>,
         options?: MongooseUpdateQueryOptions | undefined
     }): Promise<Doc<TDocument> | LeanDoc<TDocument> | null> => {
-        return await this.model.findOneAndUpdate(filter, { ...updates, $inc: { __v: 1 } }, options).lean();
+        return await this.model.findOneAndUpdate(filter, { ...updates, $inc: { __v: 1 } }, options);
     };
 
     deleteOne = async ({

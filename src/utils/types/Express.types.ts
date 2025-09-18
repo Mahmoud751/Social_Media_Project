@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import type { JwtPayload } from "jsonwebtoken";
-import type { UserDoc, UserDocLean } from "../../DB/models/User.model";
+import type { UserDoc, UserDocLean } from "./mongoose.types";
 
 export interface IAuthRequest extends Request {
     user?: UserDoc | UserDocLean,

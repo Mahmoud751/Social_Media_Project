@@ -1,5 +1,6 @@
+import type { IOTP } from "../../DB/models/User.model";
+import type { OTPDoc, OTPDocLean } from "../types/mongoose.types";
 import { generateHash } from "./hash.security";
-import { IOTP, OTPDoc, OTPDocLean } from "../../DB/models/User.model";
 import { BadRequestException } from "../response/error.response";
 import { compareHash } from "./hash.security";
 

@@ -1,9 +1,9 @@
 import type { NextFunction, Response } from "express";
 import type { UserRepository } from "../DB/repository/User.repository";
 import type { AuthRequestHandler, IAuthRequest } from "../utils/types/Express.types";
-import type { TokenDoc, TokenDocLean } from "../DB/models/Token.model";
-import { type UserDoc, type UserDocLean, Role } from "../DB/models/User.model";
+import type { UserDoc, UserDocLean, TokenDoc, TokenDocLean } from "../utils/types/mongoose.types";
 import { type DecodedTokenType, decodedToken, TokenEnum } from "../utils/security/token.security";
+import { Role } from "../DB/models/User.model";
 import { BadRequestException, ForbiddenException, NotFoundException, UnauthorizedException } from "../utils/response/error.response";
 import { TokenRepository } from "../DB/repository/Token.repository";
 import { tokenRepo } from "../shared/repos.shared";

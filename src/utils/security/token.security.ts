@@ -2,12 +2,13 @@ import type {
     JwtPayload,
     SignOptions
 } from 'jsonwebtoken';
+import type { UserDocLean } from '../types/mongoose.types';
 import {
     BadRequestException,
     UnauthorizedException
 } from '../response/error.response';
 import { sign, verify } from 'jsonwebtoken';
-import { Role, type UserDocLean } from '../../DB/models/User.model';
+import { Role } from '../../DB/models/User.model';
 import { v4 as uuid } from 'uuid';
 
 export interface TokenCredentialType {

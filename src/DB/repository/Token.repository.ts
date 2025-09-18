@@ -4,7 +4,6 @@ import type {
     UpdateQuery
 } from "mongoose";
 import type {
-    IToken,
     TokenDoc,
     TokenDocLean,
     TokenFilterType,
@@ -12,10 +11,10 @@ import type {
     TokenSelectionType,
     TokenUpdateOptionsType,
     TokenUpdateType
-} from "../models/Token.model";
+} from "../../utils/types/mongoose.types";
+import type { IToken } from "../models/Token.model";
 import { DatabaseRepository } from "./db.repository";
 import { ApplicationException } from "../../utils/response/error.response";
-
 
 export class TokenRepository extends DatabaseRepository<IToken> {
     constructor (model: Model<IToken>) {

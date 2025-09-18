@@ -7,7 +7,6 @@ import type {
 } from "mongoose";
 
 import type {
-    IUser,
     UserDoc,
     UserDocLean,
     UserFilterType,
@@ -17,8 +16,8 @@ import type {
     UserUpdateOptionsType,
     UserDeletionOptionsType,
     IDType,
-} from "../models/User.model";
-
+} from "../../utils/types/mongoose.types";
+import type { IUser } from "../models/User.model";
 import { DatabaseRepository } from "./db.repository";
 import { ApplicationException } from "../../utils/response/error.response";
 

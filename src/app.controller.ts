@@ -138,6 +138,18 @@ const bootsrap = async (): Promise<void> => {
 
     // Checking Server
     app.listen(port, () => console.log(`Server Is Listening On localhost:${port}🚀🚀`));
+
+    // async function test() {
+    //     const user = new User({
+    //         username: "Mahmoud Ahmed",
+    //         email: `${Date.now()}_${Math.floor(Math.random() * 10e8)}@gmail.com`,
+    //         age: 20,
+    //         password: "123456"
+    //     });
+    //     await user.save();
+    //     console.log('Done!');
+    // };
+    // await test();
 };
 
 export default bootsrap;

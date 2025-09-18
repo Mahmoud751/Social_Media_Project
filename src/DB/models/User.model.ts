@@ -156,7 +156,6 @@ const userSchema = new Schema<IUser>({
 });
 
 userSchema.virtual("username").set(function (value: string): void {
-    console.log('x');
     const [firstName, lastName] = value?.split(" ") || [];
     this.set({ firstName, lastName, slug: value.replaceAll(/\s+/g, "-") });
 }).get(function (value: string): string {
@@ -172,7 +171,7 @@ userSchema.pre('validate', function (next) {
 
 userSchema.pre('save', async function (this: UserDoc & { wasNew: boolean }, next) {
     // this.wasNew = this.isNew || this.isModified("email");
-    // If Password's Updated
+    // If Password's Updatedn
     if (this.isModified("password")) {
         this.password = await generateHash(this.password);
     }
