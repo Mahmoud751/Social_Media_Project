@@ -1,5 +1,5 @@
 import type { JwtPayload } from "jsonwebtoken"
-import type { Gender } from "../../DB/models/User.model"
+import type { Gender } from "../../DB/models/user.model"
 import type { IEmailConfirmation } from "../auth/auth.dto"
 import type { IDType, UserDoc, UserDocLean } from "../../utils/types/mongoose.types"
 
@@ -30,7 +30,7 @@ export interface IUpdate {
     lastName?: string;
     age?: number;
     phone?: string;
-    address?:string;
+    address?: string;
     gender?: Gender;
 };
 

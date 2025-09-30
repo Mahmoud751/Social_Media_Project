@@ -1,7 +1,7 @@
-import { Schema, model, models, Types } from "mongoose";
+import type { UserDoc, UserFilterType } from '../../utils/types/mongoose.types';
+import { type Types, Schema, model, models } from "mongoose";
 import { generateHash } from '../../utils/security/hash.security';
 import { generateEncryption } from '../../utils/security/crypto.security';
-import { UserDoc } from '../../utils/types/mongoose.types';
 
 export enum Gender {
     male = "Male",
@@ -10,7 +10,8 @@ export enum Gender {
 
 export enum Role {
     user = "User",
-    admin = "Admin"
+    admin = "Admin",
+    super_admin = "Super_Admin"
 };
 
 export enum Provider {
@@ -38,10 +39,11 @@ export interface IUser {
     password: string;
     resetPasswordOtp?: IOTP;
     confirmEmail?: Date;
-    picture?: string | undefined,
-    tempPicture?: string,
-    coverPictures?: string[],
-    createdAt: Date;
+    picture?: string | undefined;
+    coverPictures?: string[];
+    friends?: Types.ObjectId[];
+    blockedUsers?: Types.ObjectId[];
+    createdAt?: Date;
     updatedAt?: Date;
     freezedAt?: Date;
     freezedBy?: Types.ObjectId;
@@ -49,6 +51,9 @@ export interface IUser {
     restoredBy?: Types.ObjectId;
     provider: Provider;
     changeCredentialsTime?: Date;
+    two_step_verification?: IOTP;
+    tempEmail?: string;
+    twoSV: boolean;
     gender: Gender;
     role: Role;
 };
@@ -66,7 +71,7 @@ const userSchema = new Schema<IUser>({
     firstName: {
         type: String,
         required: [true, "firstName Is Required!"],
-        minLength: [2, "Min Length Is 2, You Entered {VALUE}"],
+        minlength: [2, "Min Length Is 2, You Entered {VALUE}"],
         maxLength: [25, "Max Length Is 60, You Entered {VALUE}"],
     },
     lastName: {
@@ -87,6 +92,7 @@ const userSchema = new Schema<IUser>({
         unique: [true, "Email Must Be Unique!"],
         minLength: [2, "Min Length Is 2, You Entered {VALUE}"],
     },
+    tempEmail: String,
     age: {
         type: Number,
         required: function () {
@@ -109,16 +115,15 @@ const userSchema = new Schema<IUser>({
     phone: String,
     address: String,
     picture: String,
-    tempPicture: String,
     coverPictures: [String],
     freezedAt: Date,
     freezedBy: {
-        type: Types.ObjectId,
+        type: Schema.Types.ObjectId,
         ref: 'User'
     },
     restoredAt: Date,
     restoredBy: {
-        type: Types.ObjectId,
+        type: Schema.Types.ObjectId,
         ref: 'User'
     },
     changeCredentialsTime: Date,
@@ -138,6 +143,11 @@ const userSchema = new Schema<IUser>({
         },
         default: Role.user
     },
+    two_step_verification: OTPSchema,
+    twoSV: {
+        type: Boolean,
+        default: false
+    },
     provider: {
         type: String,
         enum: {
@@ -145,11 +155,14 @@ const userSchema = new Schema<IUser>({
             message: `Only ${Object.values(Provider)} Are Allowed!`
         },
         default: Provider.system
-    }
+    },
+    friends: [{ type: Schema.Types.ObjectId, ref: "User"}],
+    blockedUsers: [{ type: Schema.Types.ObjectId, ref: "User"}]
 }, {
     id: true,
     autoIndex: true,
     timestamps: true,
+    strictQuery: true,
     optimisticConcurrency: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true }
@@ -182,8 +195,10 @@ userSchema.pre('save', async function (this: UserDoc & { wasNew: boolean }, next
     }
 });
 
-// userSchema.post('save', async function (doc: UserDoc & { wasNew: boolean }, next) {
-    
-// });
+userSchema.pre(["find", "findOne", "findOneAndUpdate", "updateOne"], async function (next) {
+    if (this.getOptions().paranoid) {
+        this.where({ freezedAt: { $exists: false } } as UserFilterType);
+    }
+});
 
 export const User = models.User || model<IUser>("User", userSchema);

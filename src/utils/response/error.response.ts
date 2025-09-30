@@ -49,7 +49,6 @@ export class ConflictException extends ApplicationException {
 
 // Server Exceptions
 
-
 export const globalErrorHandling = (
     error: IError,
     req: Request,

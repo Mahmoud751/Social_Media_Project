@@ -8,7 +8,7 @@ import {
     UnauthorizedException
 } from '../response/error.response';
 import { sign, verify } from 'jsonwebtoken';
-import { Role } from '../../DB/models/User.model';
+import { Role } from '../../DB/models/user.model';
 import { v4 as uuid } from 'uuid';
 
 export interface TokenCredentialType {
@@ -54,10 +54,26 @@ export const generateToken = async (
     return sign(payload, secret, options);
 };
 
+export const getAllowedRules = (role: Role, newRole: Role) => {
+    let allowedRules: Role[] = [];
+    switch (role) {
+        case Role.super_admin:
+            allowedRules.push(Role.admin, Role.user)
+            break;
+        case Role.admin:
+            allowedRules.push(Role.user)
+            break;
+        default:
+            break;
+    };
+    return allowedRules;
+};
+
 export const getSignatureLvl = (role: Role = Role.user): SignatureLvl => {
     let signatureLvl: SignatureLvl;
     switch (role) {
         case Role.admin:
+        case Role.super_admin:
             signatureLvl = SignatureLvl.system;
             break;
         default:
@@ -75,11 +91,11 @@ export const getSignatures = (signatureLvl: SignatureLvl = SignatureLvl.bearer):
     switch (signatureLvl) {
         case SignatureLvl.system:
             signatures.access_signature = process.env.ACCESS_USER_TOKEN_SIGNATURE as string,
-            signatures.refresh_signature = process.env.REFRESH_USER_TOKEN_SIGNATURE as string
+                signatures.refresh_signature = process.env.REFRESH_USER_TOKEN_SIGNATURE as string
             break;
         default:
             signatures.access_signature = process.env.ACCESS_SYSTEM_TOKEN_SIGNATURE as string,
-            signatures.refresh_signature = process.env.REFRESH_SYSTEM_TOKEN_SIGNATURE as string
+                signatures.refresh_signature = process.env.REFRESH_SYSTEM_TOKEN_SIGNATURE as string
             break;
     }
     return signatures;
@@ -118,7 +134,7 @@ export const decodedToken = async (header: string, tokenType: TokenEnum = TokenE
     let signatures = getSignatures(key as SignatureLvl);
     const decoded: JwtPayload = await verifyToken(
         token,
-        tokenType === TokenEnum.access? signatures.access_signature : signatures.refresh_signature
+        tokenType === TokenEnum.access ? signatures.access_signature : signatures.refresh_signature
     );
     if (!decoded || !decoded._id) {
         throw new UnauthorizedException("Invalid Or Expired Token!");

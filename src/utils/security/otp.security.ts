@@ -1,4 +1,4 @@
-import type { IOTP } from "../../DB/models/User.model";
+import type { IOTP } from "../../DB/models/user.model";
 import type { OTPDoc, OTPDocLean } from "../types/mongoose.types";
 import { generateHash } from "./hash.security";
 import { BadRequestException } from "../response/error.response";
@@ -66,7 +66,7 @@ export const validateOTP = async ({
     // Check If Maximum Attemps Reached
     if (userOTP.count >= Number(process.env.OTP_COUNT)) {
         userOTP.count = 1,
-        userOTP.banUntil = new Date(now + Number(process.env.OTP_BAN_TIME));
+            userOTP.banUntil = new Date(now + Number(process.env.OTP_BAN_TIME));
         return {
             success: false,
             error: new BadRequestException("Too Many Attemps Failed!")
@@ -76,7 +76,7 @@ export const validateOTP = async ({
     // Check If OTP Invalid Or Expired
     if (userOTP.expiredAt.getTime() < now || !await compareHash(otp, userOTP.otp)) {
         userOTP.banUntil = undefined,
-        userOTP.count = userOTP.count + 1;
+            userOTP.count = userOTP.count + 1;
         return {
             success: false,
             error: new BadRequestException("Invalid Or Expired OTP")

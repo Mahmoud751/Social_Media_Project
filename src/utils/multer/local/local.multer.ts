@@ -15,6 +15,10 @@ export type FileType = {
     audio?: string[]
 };
 
+export const generateFileOrDirName = (filename: string  = "", splitor: string = ""): string => {
+    return `${Math.floor(Math.random() * 10e8)}${splitor}${Date.now()}${splitor}${filename}`;
+};
+
 export const fileValidation = {
     image: ['image/png', 'image/jpg', 'image/jpeg'],
     document: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
@@ -25,7 +29,7 @@ export const fileValidation = {
 export const cloudFileUpload = ({
     storageType = StorageEnum.memory,
     validation,
-    maxSizeMB = 2,
+    maxSizeMB = 5,
 }: {
     storageType?: string,
     validation: string[],
@@ -36,7 +40,7 @@ export const cloudFileUpload = ({
         : multer.diskStorage({
             destination: tmpdir(),
             filename: function (req: Request, file: Express.Multer.File, callback): void {
-                callback(null, `${Math.floor(Math.random() * 10e8)}_${Date.now()}_${file.originalname}`);
+                callback(null, generateFileOrDirName(file.originalname, "_"));
             }
         });
     const fileFilter = function (req: Request, file: Express.Multer.File, callback: FileFilterCallback): void {

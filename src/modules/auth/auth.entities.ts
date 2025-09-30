@@ -10,3 +10,4 @@ export interface ILoginResponse {
 export interface ISignupResponse {
     user: UserDoc
 };
+

@@ -1,4 +1,4 @@
-import { Gender } from "../../DB/models/User.model";
+import { Gender } from "../../DB/models/user.model";
 
 
 export interface ILogin {

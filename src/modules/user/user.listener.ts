@@ -1,4 +1,4 @@
-import { userRepo } from "../../shared/repos.shared";
+import { userRepo } from '../../shared/repos.shared';
 import { AppEmitter } from '../../shared/events.shared';
 import { deleteFile, getFile } from "../../utils/multer/AWS/s3.service";
 
@@ -18,7 +18,7 @@ userEvent.on("track-profile-photo-upload", async (data) => {
                     filter: { _id: data.userId },
                     updates: {
                         // Is There a Picture Already ? Replace : Remove Temporary
-                        ...(data.oldKey ? { set: { picture: data.oldKey } } : { unset: { picture: true } })
+                        ...(data.oldKey ? { $set: { picture: data.oldKey } } : { $unset: { picture: 1 } })
                     }
                 });
             }

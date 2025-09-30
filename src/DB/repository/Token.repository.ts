@@ -1,7 +1,6 @@
 import type {
     CreateOptions,
     Model,
-    UpdateQuery
 } from "mongoose";
 import type {
     TokenDoc,
@@ -12,22 +11,20 @@ import type {
     TokenUpdateOptionsType,
     TokenUpdateType
 } from "../../utils/types/mongoose.types";
-import type { IToken } from "../models/Token.model";
+import type { IToken } from "../models/token.model";
 import { DatabaseRepository } from "./db.repository";
 import { ApplicationException } from "../../utils/response/error.response";
+import { DecodedTokenType } from "../../utils/security/token.security";
 
 export class TokenRepository extends DatabaseRepository<IToken> {
-    constructor (model: Model<IToken>) {
+    constructor(model: Model<IToken>) {
         super(model);
     };
 
-    createToken = async ({
-        data,
-        options
-    }: {
+    createToken = async (
         data: Partial<IToken>,
         options?: CreateOptions
-    }): Promise<any> => {
+    ): Promise<TokenDoc | undefined> => {
         if (!Object.keys(data).length) {
             throw new ApplicationException("Data Is Required!");
         }
@@ -46,7 +43,7 @@ export class TokenRepository extends DatabaseRepository<IToken> {
         if (!Object.keys(filter).length) {
             throw new ApplicationException("Filter Is Required!");
         }
-        return await this.findOne({ filter, select, options });
+        return await this.findOne(filter, select, options);
     };
 
     updateToken = async ({
@@ -58,13 +55,14 @@ export class TokenRepository extends DatabaseRepository<IToken> {
         updates: TokenUpdateType,
         options: TokenUpdateOptionsType
     }): Promise<any> => {
-        if (!updates.set && !updates.unset) {
-            throw new ApplicationException("Updates Is Required!");
-        }
-        const data: UpdateQuery<IToken> = {
-            ...(updates.set && { $set: updates.set }),
-            ...(updates.unset && { $unset: updates.unset }),
-        };
-        return await this.updateOne({ filter, updates: data, options });
+        return await this.updateOne(filter, updates, options);
+    };
+
+    isExpiredToken = async (decodedToken: DecodedTokenType): Promise<boolean> => {
+        // Check If Token Is Revoked
+        const revokedToken: TokenDoc | TokenDocLean | null = await this.model.findOne({
+            jti: decodedToken.jti
+        });
+        return decodedToken && decodedToken.jti && revokedToken? true : false;
     };
 };

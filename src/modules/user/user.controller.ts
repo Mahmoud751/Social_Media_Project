@@ -1,16 +1,18 @@
 import { Router } from 'express';
 import { UserService } from './user.service';
 import { validation } from '../../middlewares/validation.middleware';
-import { userRepo } from '../../shared/repos.shared';
-import { authMiddleware } from '../../shared/middlewares.shared';
-import * as validators from './user.validation';
 import { TokenEnum } from '../../utils/security/token.security';
 import { cloudFileUpload, fileValidation } from '../../utils/multer/local/local.multer';
-import { Role } from '../../DB/models/User.model';
+import { Role } from '../../DB/models/user.model';
+import { authMiddleware } from '../../shared/middleware.shared';
+import { friendRequestRepo, postRepo, userRepo } from '../../shared/repos.shared';
+import * as validators from './user.validation';
 
 const router: Router = Router();
 
-const userService = new UserService(userRepo);
+const userService = new UserService(userRepo, postRepo, friendRequestRepo);
+
+// 25 APIs
 
 router.get(
     '/profile',
@@ -18,10 +20,37 @@ router.get(
     userService.profile
 );
 
+router.get(
+    '/dashboard',
+    authMiddleware.auth(TokenEnum.access, [Role.admin, Role.super_admin]),
+    userService.dashboard
+);
+
 router.post(
     '/refresh-token',
     authMiddleware.authentication(TokenEnum.refresh),
     userService.getNewTokens
+);
+
+router.post(
+    '/:userId/send-friend-request',
+    authMiddleware.authentication(),
+    validation(validators.sendFriendRequest),
+    userService.sendFriendRequest
+);
+
+router.patch(
+    '/:requestId/friend-request-action',
+    authMiddleware.authentication(),
+    validation(validators.friendRequestAction),
+    userService.friendRequestAction
+);
+
+router.patch(
+    '/:userId/change-role',
+    authMiddleware.auth(TokenEnum.access, [Role.super_admin, Role.admin]),
+    validation(validators.changeRole),
+    userService.changeRole
 );
 
 router.patch(
@@ -36,6 +65,32 @@ router.patch(
     authMiddleware.authentication(),
     validation(validators.updatePassword),
     userService.updatePassword
+);
+
+router.post(
+    '/request-change-email',
+    authMiddleware.authentication(),
+    validation(validators.requestEmailChange),
+    userService.requestEmailChange
+);
+
+router.get(
+    '/verify-email-change',
+    userService.verifyNewEmail
+);
+
+router.patch(
+    '/:userId/block-user',
+    authMiddleware.authentication(),
+    validation(validators.blockUser),
+    userService.blockUser
+);
+
+router.patch(
+    '/:userId/revoke-block-user',
+    authMiddleware.authentication(),
+    validation(validators.revokeBlock),
+    userService.revokeBlock
 );
 
 router.post(
@@ -59,7 +114,7 @@ router.patch(
 router.patch(
     '/upload-user-photo',
     authMiddleware.authentication(),
-    cloudFileUpload({ validation: fileValidation.image }).single("image"),
+    // cloudFileUpload({ validation: fileValidation.image }).single("image"),
     validation(validators.profileImage),
     userService.profileImage
 );
@@ -70,6 +125,19 @@ router.patch(
     cloudFileUpload({ validation: fileValidation.image }).array("images", 3),
     validation(validators.ProfileCoverImages),
     userService.profileCoverImages
+);
+
+router.patch(
+    '/enable-2sv',
+    authMiddleware.authentication(),
+    userService.enable2SV
+);
+
+router.patch(
+    '/verify-2sv-activation',
+    authMiddleware.authentication(),
+    validation(validators.verify2SV),
+    userService.verify2SV
 );
 
 router.delete(
@@ -84,6 +152,20 @@ router.delete(
     authMiddleware.auth(TokenEnum.access, [Role.admin]),
     validation(validators.deleteAccount),
     userService.deleteAccount
+);
+
+router.delete(
+    '/:requestId/cancel-friend-request',
+    authMiddleware.authentication(),
+    validation(validators.cancelFriendRequest),
+    userService.cancelFriendRequest
+);
+
+router.delete(
+    '/:userId/remove-friend',
+    authMiddleware.authentication(),
+    validation(validators.removeFriend),
+    userService.removeFriend
 );
 
 router.post(

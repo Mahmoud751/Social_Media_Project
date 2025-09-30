@@ -1,11 +1,11 @@
 import type { NextFunction, Response } from "express";
-import type { UserRepository } from "../DB/repository/User.repository";
 import type { AuthRequestHandler, IAuthRequest } from "../utils/types/Express.types";
 import type { UserDoc, UserDocLean, TokenDoc, TokenDocLean } from "../utils/types/mongoose.types";
+import type { UserRepository } from "../DB/repository/user.repository";
+import type { TokenRepository } from "../DB/repository/token.repository";
 import { type DecodedTokenType, decodedToken, TokenEnum } from "../utils/security/token.security";
-import { Role } from "../DB/models/User.model";
+import { Role } from "../DB/models/user.model";
 import { BadRequestException, ForbiddenException, NotFoundException, UnauthorizedException } from "../utils/response/error.response";
-import { TokenRepository } from "../DB/repository/Token.repository";
 import { tokenRepo } from "../shared/repos.shared";
 
 export class AuthMiddleware {
@@ -25,8 +25,7 @@ export class AuthMiddleware {
 
             // Check If Token Is Revoked
             const revokedToken: TokenDoc | TokenDocLean | null = await this.tokenModel.findToken({
-                filter: { jti: decoded.jti },
-                options: { lean: true }
+                filter: { jti: decoded.jti }
             });
             if (decoded.jti && revokedToken) {
                 throw new UnauthorizedException("Invalid Login Crendentials!");
@@ -52,7 +51,7 @@ export class AuthMiddleware {
     };
 
     authorization = (access_roles: Role[] = [Role.user]): AuthRequestHandler => {
-        return async (req: IAuthRequest, response: Response, next: NextFunction): Promise<void> => {
+        return async (req: IAuthRequest, res: Response, next: NextFunction): Promise<void> => {
             if (!access_roles.includes(req.user?.role as Role)) {
                 throw new ForbiddenException("Un-Authorized Access!");
             }
@@ -79,5 +78,3 @@ export class AuthMiddleware {
         };
     };
 };
-
-// export const 

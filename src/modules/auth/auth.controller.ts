@@ -8,6 +8,8 @@ const router: Router = Router();
 
 const authService = new AuthenticationService(userRepo);
 
+// 8 APIs
+
 router.post(
     '/signup',
     validation(validators.signup),
@@ -18,6 +20,12 @@ router.post(
     '/login',
     validation(validators.login),
     authService.login
+);
+
+router.post(
+    '/login-with-2sv',
+    validation(validators.twoSVLoginConfirmation),
+    authService.twoSVLoginConfirmation
 );
 
 router.post(

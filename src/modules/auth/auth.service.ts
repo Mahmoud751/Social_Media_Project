@@ -26,13 +26,13 @@ import {
     type TokenCredentialType,
     createLoginCredentials
 } from "../../utils/security/token.security";
-import { compareHash, generateHash } from "../../utils/security/hash.security";
+import { compareHash } from "../../utils/security/hash.security";
 import type { Types } from "mongoose";
 import type { Request, Response } from "express";
 import type { OTPDocLean, UserDoc, UserDocLean } from "../../utils/types/mongoose.types";
-import type { UserRepository } from "../../DB/repository/User.repository";
+import type { UserRepository } from "../../DB/repository/user.repository";
 import type { ILoginResponse, ISignupResponse } from "./auth.entities";
-import { Provider } from "../../DB/models/User.model";
+import { Provider } from "../../DB/models/user.model";
 import { checkOTPStatus, validateOTP } from "../../utils/security/otp.security";
 import { successResponse } from "../../utils/response/sucess.response";
 import emailEvent from "../../utils/event/email.event";
@@ -83,11 +83,14 @@ export class AuthenticationService {
         if (user) {
             throw new ConflictException("User Already Exists!");
         }
-        const newUser: UserDoc = await this.userModel.createUser({
+        const newUser: UserDoc | undefined = await this.userModel.createUser({
             username: name, email, picture,
             confirmEmail: new Date(),
             provider: Provider.google
         });
+        if (!newUser) {
+            throw new BadRequestException("Failed To Sign Up That User!");
+        }
         return successResponse<ISignupResponse>(res, {
             message: "User Signed Up Successfully!",
             statusCode: 201,
@@ -146,8 +149,7 @@ export class AuthenticationService {
             throw new UnauthorizedException("Not Verified Account!");
         }
         const user: UserDoc | UserDocLean | null = await this.userModel.findUser({
-            filter: { email: payload.email as string },
-            options: { lean: true }
+            filter: { email: payload.email as string }
         });
 
         // If User Already Exists => Login
@@ -166,11 +168,15 @@ export class AuthenticationService {
         if (!name || !email || !picture) {
             throw new BadRequestException("Invalid Data!");
         }
-        const newUser: UserDoc = await this.userModel.createUser({
+        const newUser: UserDoc | undefined = await this.userModel.createUser({
             username: name, email, picture,
             confirmEmail: new Date(),
             provider: Provider.google
         });
+
+        if (!newUser) {
+            throw new BadRequestException("Failed To Sign Up That User!");
+        }
         return successResponse<ISignupResponse>(res, {
             message: "User Signed Up Successfully!",
             statusCode: 201,
@@ -187,12 +193,12 @@ export class AuthenticationService {
     signup = async (req: Request, res: Response): Promise<Response> => {
         const data: ISignup = req.body;
         // Checking User In System Then Creating It
-        if (await this.userModel.findOne({ filter: { email: data.email }, select: "email" })) {
+        if (await this.userModel.findUser({ filter: { email: data.email }, select: "email" })) {
             throw new ConflictException("User Already Exists!");
         }
         // Create User
         const otp: string = generateOTPCode();
-        const user: UserDoc = await this.userModel.createUser({
+        const user: UserDoc | undefined = await this.userModel.createUser({
             ...data,
             phone: data.phone,
             password: data.password,
@@ -218,9 +224,8 @@ export class AuthenticationService {
      */
     login = async (req: Request, res: Response): Promise<Response> => {
         const { email, password }: ILogin = req.body;
-        const user: UserDoc | UserDocLean | null = await this.userModel.findOne({
-            filter: { email: email },
-            options: { lean: true }
+        const user: UserDoc | UserDocLean | null = await this.userModel.findUser({
+            filter: { email }
         });
         if (!user) {
             throw new UnauthorizedException("Invalid Email Or Password!");
@@ -228,16 +233,73 @@ export class AuthenticationService {
         if (!user.confirmEmail) {
             throw new UnauthorizedException("Email Not Confirmed!");
         }
-        if (user.freezedAt) {
-            throw new UnauthorizedException("Account Is Deleted!");
-        }
         if (!await compareHash(password, user.password)) {
             throw new UnauthorizedException("Invalid Email Or Password!");
         }
-        const credentials: TokenCredentialType = await createLoginCredentials({ _id: user._id as Types.ObjectId }, user.role);
+        if (user.twoSV) {
+            const otp: string = generateOTPCode();
+            await this.userModel.updateUser({
+                filter: { _id: user._id },
+                updates: {
+                    $set: {
+                        two_step_verification: await generateOTPObject(otp)
+                    }
+                }
+            });
+            emailEvent.emit("login-with-otp", { otp, to: user.email });
+            return successResponse(res, { message: "Check Your Email To Login With OTP" });
+        }
 
+        const credentials: TokenCredentialType = await createLoginCredentials(
+            { _id: user._id as Types.ObjectId },
+            user.role
+        );
         return successResponse<ILoginResponse>(res, {
             message: "User Logged In Successfully!",
+            data: { credentials }
+        });
+    };
+
+    twoSVLoginConfirmation = async (req: Request, res: Response): Promise<Response> => {
+        const { email, otp }: { email?: string, otp?: string } = req.body;
+
+        const user: UserDoc | UserDocLean | null = await this.userModel.findUser({
+            filter: { email }
+        });
+        if (!user) {
+            throw new NotFoundException("User Does Not Exist!");
+        }
+        const isValidated: ValidateOTPType = await validateOTP({
+            otp: otp as string,
+            userOTP: user.two_step_verification as OTPDocLean
+        });
+
+        if (!isValidated.success) {
+            await this.userModel.updateUser({
+                filter: { _id: user._id },
+                updates: {
+                    $set: {
+                        two_step_verification: user.two_step_verification
+                    }
+                }
+            });
+            throw isValidated.error;
+        }
+
+        // Remove OTP Object
+        await this.userModel.updateUser({
+            filter: { _id: user._id },
+            updates: {
+                $unset: {
+                    two_step_verification: 1
+                }
+            }
+        });
+
+        // Create Login Crendetials
+        const credentials: TokenCredentialType = await createLoginCredentials({ _id: user._id }, user.role);
+        return successResponse<ILoginResponse>(res, {
+            message: "Logging Confirmed Successfully!",
             data: { credentials }
         });
     };
@@ -251,8 +313,7 @@ export class AuthenticationService {
     confirmEmail = async (req: Request, res: Response): Promise<Response> => {
         const { email, otp }: IEmailConfirmation = req.body;
         const user: UserDoc | UserDocLean | null = await this.userModel.findUser({
-            filter: { email: email },
-            options: { lean: true }
+            filter: { email: email }
         });
         if (!user) {
             throw new NotFoundException("User Does Not Exist!");
@@ -273,7 +334,7 @@ export class AuthenticationService {
             await this.userModel.updateUser({
                 filter: { _id: user._id },
                 updates: {
-                    set: {
+                    $set: {
                         confirmOtp: user.confirmOtp as OTPDocLean
                     }
                 }
@@ -284,8 +345,8 @@ export class AuthenticationService {
         await this.userModel.updateUser({
             filter: { _id: user._id },
             updates: {
-                set: { confirmEmail: new Date() },
-                unset: { confirmOtp: true }
+                $set: { confirmEmail: new Date() },
+                $unset: { confirmOtp: 1 }
             }
         });
         return successResponse(res, { message: "Email Confirmed Successfully!" });
@@ -300,8 +361,7 @@ export class AuthenticationService {
     resendConfirmEmail = async (req: Request, res: Response): Promise<Response> => {
         const { email }: IEmail = req.body;
         const user: UserDoc | UserDocLean | null = await this.userModel.findUser({
-            filter: { email },
-            options: { lean: true }
+            filter: { email }
         });
         if (!user) {
             throw new BadRequestException("User Does Not Exist!");
@@ -324,14 +384,9 @@ export class AuthenticationService {
         await this.userModel.updateUser({
             filter: { email },
             updates: {
-                set: {
-                    confirmOtp: {
-                        count: 0,
-                        otp: await generateHash(otpCode),
-                        expiredAt: new Date(Date.now() + Number(process.env.OTP_EXPIRE_TIME)),
-                        banUntil: undefined
-                    }
-                },
+                $set: {
+                    confirmOtp: generateOTPObject(otpCode)
+                }
             }
         });
         return successResponse(res, { message: `OTP Code's Been Sent Successfully to ${email}` });

@@ -6,12 +6,14 @@ import {
 } from 'mongoose';
 
 export interface IToken {
-    jti: string,
-    expiresIn: number,
-    userId: Types.ObjectId
+    jti: string;
+    expiresIn: number;
+    userId: Types.ObjectId;
+    createdAt: Date;
+    updatedAt: Date;
 };
 
-const tokenSchema = new Schema({
+const tokenSchema = new Schema<IToken>({
     jti: {
         type: String,
         required: true,
@@ -22,12 +24,13 @@ const tokenSchema = new Schema({
         required: true,
     },
     userId: {
-        type: Types.ObjectId,
+        type: Schema.Types.ObjectId,
         required: true,
         ref: 'User'
     }
 }, {
-    timestamps: true
+    timestamps: true,
+    strictQuery: true,
 });
 
 export const Token = models.Token || model<IToken>("Token", tokenSchema);

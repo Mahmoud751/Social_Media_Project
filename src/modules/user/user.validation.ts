@@ -2,6 +2,8 @@ import { z } from "zod";
 import { generalFields } from "../../middlewares/validation.middleware";
 import type { IUpdatePassword } from "./user.dto";
 import { isValidObjectId } from "mongoose";
+import { fileValidation } from "../../utils/multer/local/local.multer";
+import { Role } from "../../DB/models/user.model";
 
 export const sendForgetPassword = {
     body: z.strictObject({
@@ -22,6 +24,12 @@ export const resetPassword = {
     })
 };
 
+export const verify2SV = {
+    body: z.strictObject({
+        otp: generalFields.otp
+    })
+};
+
 export const updateBasicInfo = {
     body: z.strictObject({
         username: generalFields.username.optional(),
@@ -33,11 +41,16 @@ export const updateBasicInfo = {
 };
 
 export const profileImage = {
-    
+    body: z.strictObject({
+        originalname: z.string("Invalid Type"),
+        ContentType: z.enum(fileValidation.image, "Not Supported Ext!")
+    })
 };
 
 export const ProfileCoverImages = {
-
+    files: z.array(
+        generalFields.file({ fieldname: "images", mimetype: fileValidation.image })
+    )
 };
 
 export const logout = {
@@ -58,6 +71,12 @@ export const updatePassword = {
     })
 };
 
+export const requestEmailChange = {
+    body: z.strictObject({
+        newEmail: generalFields.email
+    })
+};
+
 export const freezeAccount = {
     params: z.object({
         userId: generalFields.id.optional()
@@ -69,11 +88,39 @@ export const freezeAccount = {
     })
 };
 
-
 export const restoreAccount = {
     params: z.strictObject({
         userId: generalFields.id
     })
 };
+
+export const changeRole = {
+    params: restoreAccount.params,
+    body: z.strictObject({
+        role: z.enum(Role)
+    })
+};
+
+export const friendRequestAction = {
+    params: z.strictObject({
+        requestId: generalFields.id
+    }),
+    body: z.strictObject({
+        status: z.enum(["Accepted", "Declined"])
+    })
+};
+
+export const cancelFriendRequest = {
+    params: friendRequestAction.params
+};
+
+
+export const removeFriend = restoreAccount;
+
+export const blockUser = restoreAccount;
+
+export const revokeBlock = restoreAccount;
+
+export const sendFriendRequest = restoreAccount;
 
 export const deleteAccount = restoreAccount;

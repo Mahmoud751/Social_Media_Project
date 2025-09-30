@@ -1,5 +1,5 @@
 import {
-    _Object,
+    type _Object,
     DeleteObjectCommand,
     DeleteObjectCommandOutput,
     DeleteObjectsCommand,
@@ -11,8 +11,8 @@ import {
     ObjectCannedACL,
     PutObjectCommand
 } from "@aws-sdk/client-s3";
-import { StorageEnum } from "../local/local.multer";
-import { createReadStream } from "fs";
+import { generateFileOrDirName, StorageEnum } from "../local/local.multer";
+import { createReadStream } from "node:fs";
 import { ApplicationException, BadRequestException } from "../../response/error.response";
 import { Upload } from "@aws-sdk/lib-storage";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -92,7 +92,7 @@ export const uploadLargeFile = async ({
             Body: storageType !== StorageEnum.memory ? createReadStream(file.path) : file.buffer,
             ContentType: file.mimetype
         },
-        partSize: 5 * 1024 * 1024
+        partSize: 5 * 1024 * 1024 // 5MB
     });
     upload.on("httpUploadProgress", (progress) => {
         console.log(progress);
@@ -124,7 +124,7 @@ export const uploadFiles = async ({
                 (file: Express.Multer.File) => uploadLargeFile({ Bucket, ACL, path, file })
             ));
         } else {
-            keys = await Promise.all((files).map(
+            keys = await Promise.all(files.map(
                 (file: Express.Multer.File) => uploadFile({ storageType, Bucket, ACL, path, file })
             ));
         }
@@ -165,12 +165,16 @@ export const deleteFiles = async (
     urls: string[],
     Bucket: string = process.env.AWS_BUCKET_NAME as string
 ): Promise<DeleteObjectsCommandOutput> => {
-    const Objects = urls.map((url: string) => ({ Key: url }));
+    const Objects: { Key: string }[] = urls.map((url: string) => ({ Key: url }));
     const command = new DeleteObjectsCommand({
         Bucket,
-        Delete: { Objects, Quiet: true }
+        Delete: { Objects, Quiet: false }
     });
-    return await s3Config().send(command);
+    const response: DeleteObjectsCommandOutput = await s3Config().send(command);
+    if (response.Errors?.length) {
+        throw new BadRequestException("Failed To Delete All Files", response.Errors);
+    }
+    return response;
 };
 
 export const deleteDirectoryByPrefix = async (
@@ -178,9 +182,8 @@ export const deleteDirectoryByPrefix = async (
     Bucket: string = process.env.AWS_BUCKET_NAME as string
 ): Promise<DeleteObjectCommandOutput> => {
     const files: ListObjectsV2CommandOutput = await getDirectoryFiles(path, Bucket);
-    console.log(files);
     if (!files || !files.KeyCount) {
-        throw new BadRequestException("No Files Exist!");
+        throw new BadRequestException("No Directory Exist!");
     }
     const urls: string[] = (files.Contents as _Object[]).map((content: _Object) => content.Key as string);
     return await deleteFiles(urls, Bucket);
@@ -195,7 +198,7 @@ export const createUploadPresignedLink = async ({
 }: PresignedUploadType): Promise<UploadPresignedPayloadType> => {
     const command = new PutObjectCommand({
         Bucket,
-        Key: `${process.env.APP_NAME}/${path}/${Math.floor(Math.random() * 10e8)}_${Date.now()}_${originalname}`,
+        Key: `${process.env.APP_NAME}/${path}/${generateFileOrDirName(originalname, "_")}`,
         ContentType,
     });
     const url: string = await getSignedUrl(s3Config(), command, { expiresIn });
@@ -215,7 +218,7 @@ export const createGetPresignedLink = async ({
 }: PresignedGetType): Promise<string> => {
     // Enable Downloading
     const ResponseContentDisposition: string | undefined = 
-        download === 'true' ? `attachments; filename="${downloadName || Key[-1]}"` : undefined
+        download === 'true' ? `attachments; filename="${downloadName || Key[Key.length - 1]}"` : undefined
 
     // Retrieve File
     const command = new GetObjectCommand({
