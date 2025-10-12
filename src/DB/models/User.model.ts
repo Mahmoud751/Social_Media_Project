@@ -39,7 +39,7 @@ export interface IUser {
     password: string;
     resetPasswordOtp?: IOTP;
     confirmEmail?: Date;
-    picture?: string | undefined;
+    profilePicture?: string | undefined;
     coverPictures?: string[];
     friends?: Types.ObjectId[];
     blockList?: Types.ObjectId[];
@@ -114,7 +114,7 @@ const userSchema = new Schema<IUser>({
     resetPasswordOtp: OTPSchema,
     phone: String,
     address: String,
-    picture: String,
+    profilePicture: String,
     coverPictures: [String],
     freezedAt: Date,
     freezedBy: {

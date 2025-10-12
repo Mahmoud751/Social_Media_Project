@@ -84,7 +84,7 @@ export class AuthenticationService {
             throw new ConflictException("User Already Exists!");
         }
         const newUser: UserDoc | undefined = await this.userModel.createUser({
-            username: name, email, picture,
+            username: name, email, profilePicture: picture,
             confirmEmail: new Date(),
             provider: Provider.google
         });
@@ -169,7 +169,7 @@ export class AuthenticationService {
             throw new BadRequestException("Invalid Data!");
         }
         const newUser: UserDoc | undefined = await this.userModel.createUser({
-            username: name, email, picture,
+            username: name, email, profilePicture: picture,
             confirmEmail: new Date(),
             provider: Provider.google
         });

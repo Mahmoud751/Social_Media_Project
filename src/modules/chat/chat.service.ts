@@ -36,7 +36,7 @@ export class ChatService {
             options: {
                 populate: [{
                     path: "participants",
-                    select: "firstName lastName email gender picture"
+                    select: "firstName lastName email gender profilePicture"
                 }]
             },
             page: Number(page),
@@ -65,7 +65,7 @@ export class ChatService {
             options: {
                 populate: [{
                     path: "messages.createdBy",
-                    select: "firstName lastName email gender picture"
+                    select: "firstName lastName email gender profilePicture"
                 }]
             },
             page: Number(page),

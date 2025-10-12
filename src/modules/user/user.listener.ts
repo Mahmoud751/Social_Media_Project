@@ -18,7 +18,7 @@ userEvent.on("track-profile-photo-upload", async (data) => {
                     filter: { _id: data.userId },
                     updates: {
                         // Is There a Picture Already ? Replace : Remove Temporary
-                        ...(data.oldKey ? { $set: { picture: data.oldKey } } : { $unset: { picture: 1 } })
+                        ...(data.oldKey ? { $set: { profilePicture: data.oldKey } } : { $unset: { profilePicture: 1 } })
                     }
                 });
             }

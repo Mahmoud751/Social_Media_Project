@@ -875,7 +875,7 @@ export class UserService {
         }
         userEvent.emit("track-profile-photo-upload", {
             userId: decoded._id,
-            oldKey: req.user?.picture as string,
+            oldKey: req.user?.profilePicture as string,
             key,
             expiresIn: 50000
         });
