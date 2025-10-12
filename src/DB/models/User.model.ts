@@ -42,7 +42,7 @@ export interface IUser {
     picture?: string | undefined;
     coverPictures?: string[];
     friends?: Types.ObjectId[];
-    blockedUsers?: Types.ObjectId[];
+    blockList?: Types.ObjectId[];
     createdAt?: Date;
     updatedAt?: Date;
     freezedAt?: Date;
@@ -157,7 +157,7 @@ const userSchema = new Schema<IUser>({
         default: Provider.system
     },
     friends: [{ type: Schema.Types.ObjectId, ref: "User"}],
-    blockedUsers: [{ type: Schema.Types.ObjectId, ref: "User"}]
+    blockList: [{ type: Schema.Types.ObjectId, ref: "User"}]
 }, {
     id: true,
     autoIndex: true,

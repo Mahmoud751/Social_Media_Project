@@ -42,6 +42,8 @@ const friendRequest = new Schema<IFriendRequest>({
     optimisticConcurrency: true,
 });
 
+friendRequest.index({ receiver: 1 });
+
 friendRequest.pre("save", function (next) {
     const senderId: string = this.sender.toString();
     const receiverId: string = this.receiver.toString();
@@ -53,5 +55,4 @@ friendRequest.pre("save", function (next) {
     next();
 });
 
-friendRequest.index({ receiver: 1 });
 export const FriendRequest = models.FriendRequest || model("FriendRequest", friendRequest);

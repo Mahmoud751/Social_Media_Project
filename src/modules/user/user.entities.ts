@@ -1,7 +1,8 @@
-import type { UserDoc, UserDocLean } from "../../utils/types/mongoose.types";
+import type { ChatDoc, ChatDocLean, UserDoc, UserDocLean } from "../../utils/types/mongoose.types";
 
 export interface IProfileResponse {
-    user: Partial<UserDoc> | Partial<UserDocLean>
+    user: Partial<UserDoc> | Partial<UserDocLean>;
+    groups: Partial<ChatDoc[] | ChatDocLean[]>;
 };
 
 export interface ICrendentialsResponse {

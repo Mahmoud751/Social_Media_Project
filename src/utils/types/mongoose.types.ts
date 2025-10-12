@@ -21,6 +21,7 @@ import { IFriendRequest } from "../../DB/models/friendRequest.model";
 import { IToken } from "../../DB/models/token.model";
 import { IPost } from "../../DB/models/post.model";
 import { IComment } from "../../DB/models/comment.model";
+import { IChat } from "../../DB/models/chat.model";
 
 // General DB Types
 export type PaginatedDocType<T> = {
@@ -98,3 +99,14 @@ export type FriendRequestSelectionType = ProjectionType<IFriendRequest>;
 export type FriendRequestOptionsType = QueryOptions<IFriendRequest> & { paranoid?: boolean };
 export type FriendRequestUpdateOptionsType = MongooseUpdateQueryOptions<IFriendRequest> & { paranoid?: boolean };
 export type FriendRequestDeletionOptionsType = MongooseBaseQueryOptions<IFriendRequest> & { paranoid?: boolean };
+
+// Chat Model
+export type ChatUpdateType = UpdateQuery<IChat> | UpdateWithAggregationPipeline;
+export type ChatDoc = HydratedDocument<IChat>;
+export type ChatDocLean = Require_id<FlattenMaps<BufferToBinary<IChat>>>;
+export type ChatType = ChatDoc | ChatDocLean;
+export type ChatFilterType = RootFilterQuery<IChat>;
+export type ChatSelectionType = ProjectionType<IChat>;
+export type ChatOptionsType = QueryOptions<IChat> & { paranoid?: boolean };
+export type ChatUpdateOptionsType = MongooseUpdateQueryOptions<IChat> & { paranoid?: boolean };
+export type ChatDeletionOptionsType = MongooseBaseQueryOptions<IChat> & { paranoid?: boolean };

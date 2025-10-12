@@ -32,15 +32,19 @@ emailEvent.on("reset-password-email", async (data: IEmailOptions): Promise<void>
     }
 });
 
-emailEvent.on("send-tag-notification-emails", async (
+emailEvent.on("send-tag-notification-emails", async ({
+    authorName,
+    users
+}:{
+    authorName: string,
     users: Partial<UserDocLean>[]
-): Promise<void> => {
+}): Promise<void> => {
     try {
         const subject: string = "Tag Notification";
         await Promise.all(users.map((user) => sendEmail({
             to: user.email,
             subject,
-            html: verifyEmailTemplate(`${user.firstName} ${user.lastName} Tagged You On His New Post!`, subject)
+            html: verifyEmailTemplate(`${authorName} Tagged You On His New Post!`, subject)
         })));
     } catch (error) {
         console.log("Failed To Send The Emails", error);

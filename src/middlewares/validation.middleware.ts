@@ -1,12 +1,12 @@
 import type { ZodType } from "zod/v4";
 import type { NextFunction, Request, RequestHandler, Response } from "express";
+import type { AuthRequestHandler, IAuthRequest } from "../utils/types/Express.types";
 import { z } from "zod";
 import { BadRequestException } from "../utils/response/error.response";
 import { Gender } from "../DB/models/user.model";
 import { isValidObjectId } from "mongoose";
 import { LogOutEnum } from "../utils/security/token.security";
 import { AllowComments, Availability, LikeEnum } from "../DB/models/post.model";
-import { AuthRequestHandler, IAuthRequest } from "../utils/types/Express.types";
 
 type KeyReqType = keyof Request;
 type SchemaType = Partial<Record<KeyReqType, ZodType>>;
@@ -64,7 +64,7 @@ export const validation = (schema: SchemaType): AuthRequestHandler | RequestHand
 		next: NextFunction
 	): Promise<void> => {
 		if (req.file) {
-			req.body.attachments = [req.file];
+			req.body.attachment = req.file;
 		} else if (req.files) {
 			req.body.attachments = req.files;
 		}

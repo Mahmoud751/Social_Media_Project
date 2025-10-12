@@ -5,12 +5,15 @@ import { TokenEnum } from '../../utils/security/token.security';
 import { cloudFileUpload, fileValidation } from '../../utils/multer/local/local.multer';
 import { Role } from '../../DB/models/user.model';
 import { authMiddleware } from '../../shared/middleware.shared';
-import { friendRequestRepo, postRepo, userRepo } from '../../shared/repos.shared';
+import { chatRepo, friendRequestRepo, postRepo, userRepo } from '../../shared/repos.shared';
 import * as validators from './user.validation';
+import { chatController } from '../chat';
 
 const router: Router = Router();
 
-const userService = new UserService(userRepo, postRepo, friendRequestRepo);
+router.use('/:userId/chat', chatController);
+
+const userService = new UserService(userRepo, chatRepo, postRepo, friendRequestRepo);
 
 // 25 APIs
 

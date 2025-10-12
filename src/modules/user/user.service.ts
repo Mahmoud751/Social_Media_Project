@@ -9,6 +9,8 @@ import type {
     IUserId
 } from "./user.dto";
 import type {
+    ChatDoc,
+    ChatDocLean,
     DeleteResultType,
     FriendRequestDoc,
     FriendRequestDocLean,
@@ -27,8 +29,9 @@ import type {
     IProfileResponse
 } from "./user.entities";
 import {
+    deleteFiles,
+    uploadFiles,
     createUploadPresignedLink,
-    deleteFiles, uploadFiles,
     UploadPresignedPayloadType
 } from "../../utils/multer/AWS/s3.service";
 import {
@@ -69,17 +72,25 @@ import { compareHash, generateHash } from "../../utils/security/hash.security";
 import { generateDecryption, generateEncryption } from "../../utils/security/crypto.security";
 import { successResponse } from "../../utils/response/sucess.response";
 import { StatusEnum } from "../../DB/models/friendRequest.model";
+import { ChatRepository } from "../../DB/repository/chat.repository";
 import emailEvent from "../../utils/event/email.event";
 import userEvent from "./user.listener";
 
 export class UserService {
     private userModel: UserRepository;
+    private chatModel: ChatRepository;
     private postModel: PostRepository;
     private friendRequestModel: FriendRequestRepository;
     private tokenModel: TokenRepository = tokenRepo;
 
-    constructor(userModel: UserRepository, postModel: PostRepository, friendReqeustModel: FriendRequestRepository) {
+    constructor(
+        userModel: UserRepository,
+        chatModel: ChatRepository,
+        postModel: PostRepository,
+        friendReqeustModel: FriendRequestRepository
+    ) {
         this.userModel = userModel;
+        this.chatModel = chatModel;
         this.postModel = postModel;
         this.friendRequestModel = friendReqeustModel;
     };
@@ -94,13 +105,16 @@ export class UserService {
         if (!req.user) {
             throw new NotFoundException("User Does Not Exist!");
         }
+
+        // Get User's Friends
         const user = await this.userModel.findUser({
             filter: { _id: req.user._id },
             options: {
-                populate: {
+                populate: [{
                     path: "friends",
                     select: "firstName lastName email gender picture"
-                }
+                }],
+                lean: false
             }
         });
         if (!user) {
@@ -109,7 +123,15 @@ export class UserService {
         if (user.phone) {
             user.phone = await generateDecryption(user.phone);
         }
-        return successResponse<IProfileResponse>(res, { data: { user } });
+
+        // Get User's Groups
+        const groups: ChatDoc[] | ChatDocLean[] = await this.chatModel.findChats({
+            filter: {
+                group: { $exists: true },
+                participants: { $in: req.user._id }
+            }
+        });
+        return successResponse<IProfileResponse>(res, { data: { user, groups } });
     };
 
     /**
@@ -297,6 +319,12 @@ export class UserService {
         return successResponse(res, { message: 'Friend Request Cancelled Successfully!' });
     };
 
+    /**
+     * removeFriend
+     * @param req - Express.Request
+     * @param res - Express.Response
+     * @returns Promise<Respone>
+     */
     removeFriend = async (req: IAuthRequest, res: Response): Promise<Response> => {
         const { userId }: { userId?: string } = req.params;
         if (!req.user) {
@@ -312,6 +340,12 @@ export class UserService {
         return successResponse(res, { message: "Friend Remove Successfully!" });
     };
 
+    /**
+     * blockUser
+     * @param req - Express.Request
+     * @param res - Express.Response
+     * @returns Promise<Respone>
+     */
     blockUser = async (req: IAuthRequest, res: Response): Promise<Response> => {
         const { userId }: { userId?: string } = req.params;
         if (!req.user) {
@@ -329,10 +363,11 @@ export class UserService {
         const updated: UpdateResultType = await this.userModel.updateUser({
             filter: {
                 _id: req.user._id,
-                blockedUsers: { $ne: id }
+                blockList: { $ne: id }
             },
             updates: {
-                $addToSet: { blockedUsers: id }
+                $addToSet: { blockList: id },
+                $pull: { friends: id }
             }
         });
 
@@ -342,6 +377,12 @@ export class UserService {
         return successResponse(res, { message: "Friend's Blocked Successfully!" });
     };
 
+    /**
+     * revokeBlock
+     * @param req - Express.Request
+     * @param res - Express.Response
+     * @returns Promise<Respone>
+     */
     revokeBlock = async (req: IAuthRequest, res: Response): Promise<Response> => {
         const { userId }: { userId?: string } = req.params;
         if (!req.user) {
@@ -359,10 +400,10 @@ export class UserService {
         const updated: UpdateResultType = await this.userModel.updateUser({
             filter: {
                 _id: req.user._id,
-                blockedUsers: id
+                blockList: id
             },
             updates: {
-                $pull: { blockedUsers: id }
+                $pull: { blockList: id }
             }
         });
 
@@ -515,6 +556,12 @@ export class UserService {
         });
     };
 
+    /**
+     * enable2SV
+     * @param req - Express.Request
+     * @param res - Express.Response
+     * @returns Promise<Respone>
+     */
     enable2SV = async (req: IAuthRequest, res: Response): Promise<Response> => {
         if (req.user?.twoSV) {
             throw new BadRequestException("Two Step Verification Already Enabled!");
@@ -532,6 +579,12 @@ export class UserService {
         return successResponse(res, { message: "Check Your Email To Activate Two Step Verification!" });
     };
 
+    /**
+     * verify2SV
+     * @param req - Express.Request
+     * @param res - Express.Response
+     * @returns Promise<Respone>
+     */
     verify2SV = async (req: IAuthRequest, res: Response): Promise<Response> => {
         const { user }: { user?: UserDoc | UserDocLean } = req;
         const { otp }: { otp: string } = req.body;

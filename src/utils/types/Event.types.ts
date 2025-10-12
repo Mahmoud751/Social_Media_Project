@@ -15,6 +15,11 @@ export interface IEmailUpdateOptions extends MailOptions {
     newEmaiL?: string;
 };
 
+export interface ISendTagNotifications {
+    authorName: string;
+    users: Partial<UserDocLean>[];
+};
+
 export type Events = {
     "track-profile-photo-upload": {
         userId: Types.ObjectId;
@@ -35,5 +40,5 @@ export type Events = {
 
     "notify-email-update": IEmailUpdateOptions
 
-    "send-tag-notification-emails": Partial<UserDocLean>[];
+    "send-tag-notification-emails": ISendTagNotifications;
 }

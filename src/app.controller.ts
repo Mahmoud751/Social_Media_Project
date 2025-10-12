@@ -3,14 +3,36 @@ import { config } from 'dotenv';
 
 config({ path: resolve('./config/.env.development') });
 
-import type { Express, Request, Response, NextFunction } from 'express';
-import type { RateLimitRequestHandler, Options } from 'express-rate-limit';
+import type {
+    Express,
+    Response,
+    NextFunction,
+    Request
+} from 'express';
+import type {
+    RateLimitRequestHandler,
+    Options
+} from 'express-rate-limit';
 import type { CorsOptions } from 'cors';
-import { BadRequestException, globalErrorHandling } from './utils/response/error.response';
+import type { Server as HttpServer } from 'http';
+import {
+    authController,
+    userController,
+    postController,
+    chatController
+} from './modules';
+import {
+    BadRequestException,
+    globalErrorHandling
+} from './utils/response/error.response';
 import { rateLimit } from 'express-rate-limit';
 import { getFile } from './utils/multer/AWS/s3.service';
 import { pipeline } from 'stream/promises';
-import { authController, userController, postController } from './modules';
+import { initializeIo } from './modules/gateway';
+import { Readable } from 'stream';
+import { graphQLSchema } from './modules/graphql/schema.gql';
+import { createHandler } from 'graphql-http/lib/use/express';
+import { authGraphQL } from './shared/middleware.shared';
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -18,7 +40,7 @@ import connectDB from './DB/connect.db';
 
 const bootsrap = async (): Promise<void> => {
     const app: Express = express();
-    const port: string | number = process.env.PORT || 5000;
+    const port: number = Number(process.env.PORT) || 5000;
 
     // Cors Options
     const whitelist: string[] | undefined = process.env.ORIGINS?.split(',');
@@ -49,6 +71,11 @@ const bootsrap = async (): Promise<void> => {
     // Connecting To Database
     await connectDB();
 
+    app.all("/graphql", createHandler({
+        schema: graphQLSchema,
+        context: authGraphQL.authenticationGQL()
+    }));
+
     // Home Route
     app.get('/', (req: Request, res: Response) => res.json({ message: "Home Page 🏠🏠" }));
 
@@ -60,6 +87,9 @@ const bootsrap = async (): Promise<void> => {
 
     // Post
     app.use('/post', postController);
+
+    // Chat
+    app.use('/chat', chatController);
 
     // // Uploads
     // app.get('/upload/pre-signed/*path', async (req: Request, res: Response): Promise<Response> => {
@@ -110,18 +140,38 @@ const bootsrap = async (): Promise<void> => {
     // });
 
     app.get('/upload/*path', async (req: Request, res: Response): Promise<void> => {
-        const { path }: { path?: string[] } = req.params;
-        const { download, downloadName }: { download?: string, downloadName?: string } = req.query;
-        if (!path) {
-            throw new BadRequestException("Invalid Path");
+        try {
+            const { path }: { path?: string[] } = req.params;
+            const { download, downloadName }: { download?: string, downloadName?: string } = req.query;
+            if (!path) {
+                throw new BadRequestException("Invalid Path");
+            }
+            const Key: string = path.join("/");
+            const { Body, ContentType } = await getFile(Key);
+
+            // Set Headers To Stream The File
+            res.set("Cross-Origin-Resource-Policy", "cross-origin");
+            res.setHeader("Content-Type", `${ContentType || "application/octet-stream"}`);
+
+            if (download === 'true') {
+                res.setHeader("Content-Disposition", `attachments; filename="${downloadName || Key[-1]}"`)
+            }
+
+            // If Request Is Aborted (Client Disconnected, Client's Refresh)
+            req.on("aborted", () => {
+                console.log(`Request Aborted For File: ${Key}`);
+                if (Body && Body instanceof Readable) {
+                    Body.destroy();
+                }
+            });
+            return await pipeline(Body as NodeJS.ReadableStream, res);
+        } catch (error: any) {
+            if (error.code === "ERR_STREAM_PREMATURE_CLOSE") {
+                console.warn('Stream Closed Prematurely');
+            } else {
+                res.status(500).send("Error Streaming File!");
+            }
         }
-        const Key: string = path.join("/");
-        const { Body, ContentType } = await getFile(Key);
-        res.setHeader("Content-Type", `${ContentType || "application/octet-stream"}`);
-        if (download === 'true') {
-            res.setHeader("Content-Disposition", `attachments; filename="${downloadName || Key[-1]}"`)
-        }
-        return await pipeline(Body as NodeJS.ReadableStream, res);
     });
 
     // Invalid Route
@@ -131,7 +181,9 @@ const bootsrap = async (): Promise<void> => {
     app.use(globalErrorHandling);
 
     // Checking Server
-    app.listen(port, () => console.log(`Server Is Listening On localhost:${port}🚀🚀`));
+    const httpServer: HttpServer = app.listen(port, () => console.log(`HTTP Server Is Listening On localhost:${port}🚀🚀`));
+
+    initializeIo(httpServer);
 };
 
 export default bootsrap;

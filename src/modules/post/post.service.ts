@@ -81,7 +81,10 @@ export class PostService {
 
         // Send Emails To Tagged People
         if (users.length) {
-            emailEvent.emit("send-tag-notification-emails", users);
+            emailEvent.emit("send-tag-notification-emails", {
+                authorName: `${req.user.firstName} ${req.user.lastName}`,
+                users
+            });
         }
         return successResponse<IPostResponse>(res, {
             message: "Post Created Successfully!",

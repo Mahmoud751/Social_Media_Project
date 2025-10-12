@@ -21,7 +21,12 @@ import {
 import { ApplicationException } from "../../utils/response/error.response";
 
 export abstract class DatabaseRepository<TDocument> {
-    constructor(protected readonly model: Model<TDocument>) {};
+    protected readonly model: Model<TDocument>;
+
+    constructor(model: Model<TDocument>) {
+        this.model = model;
+    };
+
     create = async (
         data: Partial<TDocument>[],
         options?: CreateOptionsType
